@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct __PuttApp: App {
+struct PiTracApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()

@@ -6,7 +6,7 @@ struct ContentView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color(.systemGroupedBackground)
+                groupedBackground
                     .ignoresSafeArea()
 
                 ScrollView {
@@ -54,7 +54,7 @@ struct ContentView: View {
                         }
                         .frame(maxWidth: .infinity)
                         .padding(24)
-                        .background(Color(.systemBackground))
+                        .background(cardBackground)
                         .cornerRadius(20)
                         .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 5)
                         .padding(.horizontal)
@@ -108,7 +108,7 @@ struct ContentView: View {
                                     .foregroundColor(.secondary)
                             }
                             .padding()
-                            .background(Color(.systemBackground))
+                            .background(cardBackground)
                             .cornerRadius(12)
                         }
                         .padding(.horizontal)
@@ -121,6 +121,22 @@ struct ContentView: View {
                 manager.connect()
             }
         }
+    }
+
+    private var groupedBackground: Color {
+        #if os(iOS)
+        Color(.systemGroupedBackground)
+        #else
+        Color(nsColor: .windowBackgroundColor)
+        #endif
+    }
+
+    private var cardBackground: Color {
+        #if os(iOS)
+        Color(.systemBackground)
+        #else
+        Color(nsColor: .controlBackgroundColor)
+        #endif
     }
 }
 
@@ -156,12 +172,16 @@ struct SecondaryCard: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(Color(.systemBackground))
+        .background(cardBackground)
         .cornerRadius(14)
         .shadow(color: Color.black.opacity(0.03), radius: 5, x: 0, y: 2)
     }
-}
 
-#Preview {
-    ContentView()
+    private var cardBackground: Color {
+        #if os(iOS)
+        Color(.systemBackground)
+        #else
+        Color(nsColor: .controlBackgroundColor)
+        #endif
+    }
 }
