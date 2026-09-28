@@ -1,11 +1,13 @@
 import Foundation
 import Observation
+import UIKit
 
 @Observable
 class LaunchMonitorManager {
     var isConnected = false
     var latestShot: ShotData?
     var shotHistory: [ShotData] = []
+    var liveCameraImage: UIImage?
 
     private var webSocketTask: URLSessionWebSocketTask?
     private var urlSession = URLSession(configuration: .default)
@@ -53,16 +55,50 @@ class LaunchMonitorManager {
     }
 
     private func decodeAndPublish(text: String) {
-        if let data = text.data(using: .utf8) {
-            do {
-                let shot = try JSONDecoder().decode(ShotData.self, from: data)
+        guard let data = text.data(using: .utf8),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let type = json["type"] as? String else {
+
+            if let shotData = text.data(using: .utf8),
+               let shot = try? JSONDecoder().decode(ShotData.self, from: shotData) {
                 DispatchQueue.main.async {
                     self.latestShot = shot
                     self.shotHistory.insert(shot, at: 0)
-                    print("Successfully received and displayed shot payload!")
                 }
-            } catch {
-                print("Failed to decode shot JSON: \(error)")
+            }
+            return
+        }
+
+        if type == "camera_frame",
+           let base64String = json["image"] as? String,
+           let imageData = Data(base64Encoded: base64String),
+           let image = UIImage(data: imageData) {
+            DispatchQueue.main.async {
+                self.liveCameraImage = image
+            }
+        } else if type == "shot" {
+            publishShot(from: data, json: json)
+        }
+    }
+
+    private func publishShot(from data: Data, json: [String: Any]) {
+        if let shot = try? JSONDecoder().decode(ShotData.self, from: data) {
+            DispatchQueue.main.async {
+                self.latestShot = shot
+                self.shotHistory.insert(shot, at: 0)
+            }
+            return
+        }
+
+        for key in ["shot", "data", "payload"] {
+            if let nested = json[key],
+               let nestedData = try? JSONSerialization.data(withJSONObject: nested),
+               let shot = try? JSONDecoder().decode(ShotData.self, from: nestedData) {
+                DispatchQueue.main.async {
+                    self.latestShot = shot
+                    self.shotHistory.insert(shot, at: 0)
+                }
+                return
             }
         }
     }

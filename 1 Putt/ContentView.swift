@@ -31,6 +31,16 @@ struct ContentView: View {
                         }
                         .padding(.horizontal)
 
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("CAMERA ALIGNMENT")
+                                .font(.caption)
+                                .fontWeight(.bold)
+                                .foregroundColor(.secondary)
+                                .padding(.horizontal)
+
+                            AlignmentOverlayView(cameraImage: manager.liveCameraImage)
+                        }
+
                         VStack(spacing: 12) {
                             Text("CARRY YARDS")
                                 .font(.caption)
