@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TrackMan TPS Shot Analysis Driving Range</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  
+  <!-- Three.js and OrbitControls -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/objects/Sky.js"></script>
+  
+  <!-- Custom Styling & Font -->
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Roboto+Mono:wght@400;600;700&display=swap');
+    
+    body {
+      font-family: 'Inter', sans-serif;
+      user-select: none;
+      background-color: #0b0f14;
+      color: #ffffff;
+      overflow: hidden;
+    }
+    
+    .font-mono-num {
+      font-family: 'Roboto Mono', monospace;
+    }
+    
+    /* Glassmorphism styling */
+    .tm-glass {
+      background: rgba(18, 22, 28, 0.75);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+    
+    .tm-glass-dark {
+      background: rgba(10, 13, 17, 0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    
+    .tm-orange-btn {
+      background: linear-gradient(135deg, #ff5500 0%, #e04400 100%);
+      box-shadow: 0 4px 12px rgba(255, 85, 0, 0.35);
+    }
+    
+    .tm-orange-btn:hover {
+      background: linear-gradient(135deg, #ff661a 0%, #ee4d00 100%);
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 4px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.2);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 2px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 85, 0, 0.6);
+    }
+
+    /* Pulse animation for active tracer node */
+    @keyframes cyanPulse {
+      0%, 100% { box-shadow: 0 0 8px #00f0ff, 0 0 16px #00f0ff; }
+      50% { box-shadow: 0 0 16px #00f0ff, 0 0 28px #00f0ff; }
+    }
+    .cyan-glow {
+      animation: cyanPulse 2s infinite;
+    }
+  </style>
+</head>
+<body class="w-screen h-screen relative flex flex-col justify-between overflow-hidden">
+
+  <!-- TOP NAVIGATION BAR -->
+  <header class="w-full h-12 tm-glass-dark z-30 flex items-center justify-between px-4 border-b border-white/10 shrink-0 text-xs text-gray-300">
+    <!-- Left Navigation & Title -->
+    <div class="flex items-center gap-4">
+      <div id="back-btn" class="flex items-center gap-2 cursor-pointer hover:text-white transition">
+        <i class="fa-solid fa-angles-left text-gray-400 text-sm"></i>
+        <i class="fa-solid fa-chevron-left text-gray-400 text-xs"></i>
+        <span class="font-bold tracking-wider uppercase text-white">BACK</span>
+      </div>
+      
+      <div class="h-4 w-[1px] bg-white/20 my-auto"></div>
+      
+      <div class="flex items-center gap-4">
+        <button class="flex items-center gap-1.5 hover:text-white transition">
+          <i class="fa-solid fa-house text-gray-400"></i>
+          <span class="hidden sm:inline">Home</span>
+        </button>
+        <button class="flex items-center gap-1.5 hover:text-white transition">
+          <i class="fa-solid fa-bolt text-gray-400"></i>
+          <span class="hidden sm:inline">Shortcuts</span>
+        </button>
+        <div class="flex items-center gap-2 bg-white/10 px-2.5 py-1 rounded border border-white/10 text-white font-semibold">
+          <i class="fa-solid fa-golf-ball-tee text-orange-500"></i>
+          <span>SHOT ANALYSIS</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Top Bar Navigation Icons -->
+    <div class="flex items-center gap-5">
+      <button class="flex items-center gap-1.5 hover:text-white transition">
+        <i class="fa-solid fa-user text-gray-400"></i>
+        <span class="hidden md:inline">Player</span>
+      </button>
+      <button class="flex items-center gap-1.5 hover:text-white transition">
+        <i class="fa-solid fa-golf-club text-gray-400"></i>
+        <span class="hidden md:inline">Club</span>
+      </button>
+      <button class="flex items-center gap-1.5 hover:text-white transition">
+        <i class="fa-solid fa-tag text-gray-400"></i>
+        <span class="hidden md:inline">Tags</span>
+      </button>
+      <div class="h-4 w-[1px] bg-white/20 my-auto"></div>
+      <button class="hover:text-white transition" title="Tracy AI Coach">Tracy</button>
+      <button class="hover:text-white transition" title="Target Select">Target</button>
+      <button class="hover:text-white transition" title="Manual Record">Manual record</button>
+      <button class="hover:text-white transition" title="Camera Setup"><i class="fa-solid fa-video"></i></button>
+      
+      <div class="flex items-center gap-1.5 bg-orange-600/20 text-orange-400 px-2.5 py-1 rounded border border-orange-500/40 font-bold">
+        <i class="fa-solid fa-radar"></i>
+        <span>TrackMan</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN 3D VIEWPORT CONTAINER -->
+  <main class="relative flex-1 w-full h-full overflow-hidden">
+    <!-- 3D Canvas target -->
+    <div id="canvas-container" class="absolute inset-0 w-full h-full bg-slate-900 cursor-grab active:cursor-grabbing"></div>
+
+    <!-- Viewport Quick Overlay Controls (Top Left in 3D View) -->
+    <div class="absolute top-4 left-[280px] z-20 flex items-center gap-1.5 bg-black/60 backdrop-blur-md p-1 rounded-lg border border-white/10 text-xs">
+      <button id="view-mode-grid" class="px-2.5 py-1 rounded bg-white/20 text-white hover:bg-white/30 transition"><i class="fa-solid fa-hashtag"></i></button>
+      <button id="camera-snap-btn" class="px-2.5 py-1 rounded hover:bg-white/20 text-gray-300 transition" title="Snapshot View"><i class="fa-solid fa-camera"></i></button>
+      <button id="replay-shot-btn" class="px-2.5 py-1 rounded hover:bg-white/20 text-cyan-400 transition" title="Replay Shot Trajectory"><i class="fa-solid fa-play"></i> Replay</button>
+      <div class="h-3 w-[1px] bg-white/20 mx-1"></div>
+      <select id="camera-angle-select" class="bg-black/40 text-white text-xs px-2 py-0.5 rounded border border-white/10 focus:outline-none cursor-pointer">
+        <option value="behind">Behind Tee (Default)</option>
+        <option value="target">Target View</option>
+        <option value="top">Top Down</option>
+        <option value="side">Side Profile</option>
+      </select>
+    </div>
+
+    <!-- Viewport Aspect Icon Overlay (Top Right in 3D View) -->
+    <div class="absolute top-4 right-4 z-20 flex items-center gap-2 bg-black/60 backdrop-blur-md px-2 py-1.5 rounded-lg border border-white/10 text-gray-300 text-xs">
+      <button class="hover:text-white transition p-1" title="Split Screen Grid"><i class="fa-solid fa-table-cells-large"></i></button>
+      <button class="hover:text-white transition p-1" title="Expand View"><i class="fa-solid fa-expand"></i></button>
+    </div>
+
+    <!-- LEFT SIDEBAR - SHOT HISTORY -->
+    <aside class="absolute top-4 left-4 bottom-24 w-60 tm-glass rounded-xl z-20 flex flex-col p-3 border border-white/15 shadow-2xl">
+      <!-- Player Header Card -->
+      <div class="flex items-center justify-between pb-2.5 border-b border-white/10">
+        <div class="flex items-center gap-2.5">
+          <div class="w-7 h-7 rounded-full bg-gradient-to-tr from-gray-700 to-gray-500 border border-white/30 flex items-center justify-center font-bold text-xs text-white">
+            B
+          </div>
+          <div>
+            <div class="flex items-center gap-1.5">
+              <h2 class="text-xs font-black tracking-wide text-white uppercase">BEN</h2>
+            </div>
+            <p class="text-[10px] text-gray-400">4 Iron • 3/1/2024, Pre</p>
+          </div>
+        </div>
+        <span class="text-xs font-bold font-mono-num bg-white/15 text-white px-2 py-0.5 rounded border border-white/10">29</span>
+      </div>
+
+      <!-- Metric Dropdown Selector -->
+      <div class="my-2.5">
+        <div class="relative">
+          <select id="metric-filter" class="w-full bg-black/50 border border-white/20 text-white text-xs rounded-md px-2.5 py-1.5 appearance-none focus:outline-none focus:border-orange-500 cursor-pointer font-bold tracking-wider">
+            <option value="carry">CARRY</option>
+            <option value="total">TOTAL DISTANCE</option>
+            <option value="ball_speed">BALL SPEED</option>
+            <option value="club_speed">CLUB SPEED</option>
+          </select>
+          <div class="absolute right-2.5 top-2.5 pointer-events-none text-gray-400 text-xs">
+            <i class="fa-solid fa-chevron-down"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scrollable Shot History List -->
+      <div id="shot-list-container" class="flex-1 overflow-y-auto space-y-1.5 pr-1 my-1">
+        <!-- Injected via JavaScript -->
+      </div>
+
+      <!-- Orange Compare Button at Bottom -->
+      <div class="pt-2 border-t border-white/10">
+        <button id="compare-btn" class="w-full tm-orange-btn text-white font-extrabold py-2 rounded-lg text-xs tracking-wider uppercase transition transform active:scale-95 flex items-center justify-center gap-2">
+          <span>COMPARE</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- BOTTOM METRIC DASHBOARD BANNER -->
+    <div class="absolute bottom-0 left-0 right-0 z-20 tm-glass-dark border-t border-white/15 flex flex-col">
+      <!-- 10 Primary Metric Columns -->
+      <div class="grid grid-cols-10 divide-x divide-white/10 border-b border-white/10 py-1.5 px-2">
+        
+        <!-- 1. CARRY -->
+        <div class="flex flex-col items-center justify-center px-0.5 sm:px-1.5 py-1 text-center min-w-0 overflow-hidden hover:bg-white/5 transition rounded cursor-pointer group">
+          <span class="text-[10px] font-extrabold tracking-wider text-gray-400 group-hover:text-orange-400 uppercase">CARRY</span>
+          <div class="flex items-baseline gap-1 my-0.5">
+            <span id="metric-carry" class="text-base sm:text-xl md:text-2xl lg:text-3xl font-black text-white font-mono-num tracking-tight">—</span>
+            <span class="text-[10px] text-gray-400">yds</span>
+          </div>
+          <div class="text-[9px] text-gray-500 font-mono-num flex items-center gap-1">
+            <span>211.4</span>
+            <span class="text-gray-600">yds</span>
+            <span class="text-gray-500">±15.8</span>
+          </div>
+        </div>
+
+        <!-- 2. TOTAL -->
+        <div class="flex flex-col items-center justify-center px-0.5 sm:px-1.5 py-1 text-center min-w-0 overflow-hidden hover:bg-white/5 transition rounded cursor-pointer group">
+          <span class="text-[10px] font-extrabold tracking-wider text-gray-400 group-hover:text-orange-400 uppercase">TOTAL</span>
+          <div class="flex items-baseline gap-1 my-0.5">
+            <span id="metric-total" class="text-base sm:text-xl md:text-2xl lg:text-3xl font-black text-white font-mono-num tracking-tight">—</span>
+            <span class="text-[10px] text-gray-400">yds</span>
+          </div>
+          <div class="text-[9px] text-gray-500 font-mono-num flex items-center gap-1">
+            <span>233.6</span>
+            <span class="text-gray-600">yds</span>
+            <span class="text-gray-500">±12.5</span>
+          </div>
+        </div>
+
+        <!-- 3. CURVE -->
+        <div class="flex flex-col items-center justify-center px-0.5 sm:px-1.5 py-1 text-center min-w-0 overflow-hidden hover:bg-white/5 transition rounded cursor-pointer group">
+          <span class="text-[10px] font-extrabold tracking-wider text-gray-400 group-hover:text-orange-400 uppercase">CURVE</span>
+          <div class="flex items-baseline gap-1 my-0.5">
+            <span id="metric-curve" class="text-base sm:text-xl md:text-2xl lg:text-3xl font-black text-white font-mono-num tracking-tight">—</span>
+            <span class="text-[10px] text-gray-400">ft</span>
+          </div>
+          <div class="text-[9px] text-gray-500 font-mono-num flex items-center gap-1">
+            <span>28</span>
+            <span class="text-gray-600">ft</span>
+            <span class="text-gray-500">2R</span>
+          </div>
+        </div>
+
+        <!-- 4. CLUB SPEED -->
+        <div class="flex flex-col items-center justify-center px-0.5 sm:px-1.5 py-1 text-center min-w-0 overflow-hidden hover:bg-white/5 transition rounded cursor-pointer group">
+          <span class="text-[10px] font-extrabold tracking-wider text-gray-400 group-hover:text-orange-400 uppercase">CLUB SPEED</span>
+          <div class="flex items-baseline gap-1 my-0.5">
+            <span id="metric-club-speed" class="text-base sm:text-xl md:text-2xl lg:text-3xl font-black text-white font-mono-num tracking-tight">—</span>
+            <span class="text-[10px] text-gray-400">mph</span>
+          </div>
+          <div class="text-[9px] text-gray-500 font-mono-num flex items-center gap-1">
+            <span>92.6</span>
+            <span class="text-gray-600">mph</span>
+            <span class="text-gray-500">±1.2</span>
+          </div>
+        </div>
+
+        <!-- 5. BALL SPEED -->
+        <div class="flex flex-col items-center justify-center px-0.5 sm:px-1.5 py-1 text-center min-w-0 overflow-hidden hover:bg-white/5 transition rounded cursor-pointer group">
+          <span class="text-[10px] font-extrabold tracking-wider text-gray-400 group-hover:text-orange-400 uppercase">BALL SPEED</span>
+          <div class="flex items-baseline gap-1 my-0.5">
+            <span id="metric-ball-speed" class="text-base sm:text-xl md:text-2xl lg:text-3xl font-black text-white font-mono-num tracking-tight">—</span>
+            <span class="text-[10px] text-gray-400">mph</span>
+          </div>
+          <div class="text-[9px] text-gray-500 font-mono-num flex items-center gap-1">
+            <span>133.7</span>
+            <span class="text-gray-600">mph</span>
+            <span class="text-gray-500">±5.9</span>
+          </div>
+        </div>
+
+        <!-- 6. SMASH FAC -->
+        <div class="flex flex-col items-center justify-center px-0.5 sm:px-1.5 py-1 text-center min-w-0 overflow-hidden hover:bg-white/5 transition rounded cursor-pointer group">
+          <span class="text-[10px] font-extrabold tracking-wider text-gray-400 group-hover:text-orange-400 uppercase">SMASH FAC.</span>
+          <div class="flex items-baseline gap-1 my-0.5">
+            <span id="metric-smash" class="text-base sm:text-xl md:text-2xl lg:text-3xl font-black text-white font-mono-num tracking-tight">—</span>
+          </div>
+          <div class="text-[9px] text-gray-500 font-mono-num flex items-center gap-1">
+            <span>1.44</span>
+            <span class="text-gray-500">±0.06</span>
+          </div>
+        </div>
+
+        <!-- 7. SPIN RATE -->
+        <div class="flex flex-col items-center justify-center px-0.5 sm:px-1.5 py-1 text-center min-w-0 overflow-hidden hover:bg-white/5 transition rounded cursor-pointer group">
+          <span class="text-[10px] font-extrabold tracking-wider text-gray-400 group-hover:text-orange-400 uppercase">SPIN RATE</span>
+          <div class="flex items-baseline gap-1 my-0.5">
+            <span id="metric-spin" class="text-base sm:text-xl md:text-2xl lg:text-3xl font-black text-white font-mono-num tracking-tight">—</span>
+            <span class="text-[10px] text-gray-400">rpm</span>
+          </div>
+          <div class="text-[9px] text-gray-500 font-mono-num flex items-center gap-1">
+            <span>4319</span>
+            <span class="text-gray-600">rpm</span>
+            <span class="text-gray-500">±566</span>
+          </div>
+        </div>
+
+        <!-- 8. ATTACK ANG -->
+        <div class="flex flex-col items-center justify-center px-0.5 sm:px-1.5 py-1 text-center min-w-0 overflow-hidden hover:bg-white/5 transition rounded cursor-pointer group">
+          <span class="text-[10px] font-extrabold tracking-wider text-gray-400 group-hover:text-orange-400 uppercase">ATTACK ANG.</span>
+          <div class="flex items-baseline gap-1 my-0.5">
+            <span id="metric-attack" class="text-base sm:text-xl md:text-2xl lg:text-3xl font-black text-white font-mono-num tracking-tight">—</span>
+            <span class="text-[10px] text-gray-400">deg</span>
+          </div>
+          <div class="text-[9px] text-gray-500 font-mono-num flex items-center gap-1">
+            <span>-2.9</span>
+            <span class="text-gray-600">deg</span>
+            <span class="text-gray-500">±0.9</span>
+          </div>
+        </div>
+
+        <!-- 9. CLUB PATH -->
+        <div class="flex flex-col items-center justify-center px-0.5 sm:px-1.5 py-1 text-center min-w-0 overflow-hidden hover:bg-white/5 transition rounded cursor-pointer group">
+          <span class="text-[10px] font-extrabold tracking-wider text-gray-400 group-hover:text-orange-400 uppercase">CLUB PATH</span>
+          <div class="flex items-baseline gap-1 my-0.5">
+            <span id="metric-path" class="text-base sm:text-xl md:text-2xl lg:text-3xl font-black text-white font-mono-num tracking-tight">—</span>
+            <span class="text-[10px] text-gray-400">deg</span>
+          </div>
+          <div class="text-[9px] text-gray-500 font-mono-num flex items-center gap-1">
+            <span>3.8</span>
+            <span class="text-gray-600">deg</span>
+            <span class="text-gray-500">±2.0</span>
+          </div>
+        </div>
+
+        <!-- 10. FACE TO PATH -->
+        <div class="flex flex-col items-center justify-center px-0.5 sm:px-1.5 py-1 text-center min-w-0 overflow-hidden hover:bg-white/5 transition rounded cursor-pointer group">
+          <span class="text-[10px] font-extrabold tracking-wider text-gray-400 group-hover:text-orange-400 uppercase">FACE TO PATH</span>
+          <div class="flex items-baseline gap-1 my-0.5">
+            <span id="metric-face-path" class="text-base sm:text-xl md:text-2xl lg:text-3xl font-black text-white font-mono-num tracking-tight">—</span>
+            <span class="text-[10px] text-gray-400">deg</span>
+          </div>
+          <div class="text-[9px] text-gray-500 font-mono-num flex items-center gap-1">
+            <span>0.3</span>
+            <span class="text-gray-600">deg</span>
+            <span class="text-gray-500">±2.4</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom Toolbar Footer Strip -->
+      <div class="flex flex-col sm:flex-row justify-between items-center px-4 py-1.5 text-[10px] text-gray-400 gap-2">
+        <div class="flex items-center gap-2">
+          <span id="shot-metadata-string" class="font-medium text-gray-300">Waiting for shot…</span>
+        </div>
+        <div class="flex items-center gap-4 font-semibold">
+          <button class="hover:text-white transition flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-green-500 inline-block"></span> Normalize (N)</button>
+          <button class="hover:text-white transition">Optimizer (O)</button>
+          <button class="hover:text-white transition"><i class="fa-solid fa-desktop"></i> Screencast</button>
+          <button class="hover:text-white transition">Report (R)</button>
+          <button class="hover:text-white transition text-orange-400"><i class="fa-solid fa-cloud-arrow-up"></i> Upload</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    /* ========================================================================
+       1. SHOT DATA MODEL (TrackMan 4-Iron Shot Session Data)
+       ======================================================================== */
+    const shotsData = [];
+    let selectedShotId = null;
+
+    /* ========================================================================
+       2. UI RENDERING & EVENT HANDLERS
+       ======================================================================== */
+    function renderShotList() {
+      const container = document.getElementById('shot-list-container');
+      container.innerHTML = '';
+
+      shotsData.forEach((shot) => {
+        const isSelected = shot.id === selectedShotId;
+        const shotRow = document.createElement('div');
+        shotRow.className = `flex items-center justify-between px-2.5 py-2 rounded-lg text-xs cursor-pointer transition border ${
+          isSelected
+            ? 'bg-white/20 border-cyan-400/80 shadow-md text-white'
+            : 'bg-black/30 border-white/5 text-gray-300 hover:bg-white/10 hover:text-white'
+        }`;
+
+        shotRow.onclick = () => selectShot(shot.id);
+
+        shotRow.innerHTML = `
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full ${isSelected ? 'bg-cyan-400 cyan-glow' : 'bg-cyan-600/60'}"></span>
+            <span class="font-bold font-mono-num">#${shot.id}</span>
+            <span class="font-extrabold text-sm font-mono-num ${isSelected ? 'text-cyan-300' : 'text-gray-200'}">${shot.carry} <span class="text-[10px] font-normal text-gray-400">yds</span></span>
+          </div>
+          <div class="flex items-center gap-2 text-gray-400">
+            <span title="Cameras active"><i class="fa-solid fa-video text-[10px]"></i> ${shot.cameraAngle}</span>
+            <i class="fa-regular fa-star text-[10px] hover:text-orange-400 transition"></i>
+          </div>
+        `;
+
+        container.appendChild(shotRow);
+      });
+    }
+
+    function selectShot(shotId) {
+      selectedShotId = shotId;
+      const shot = shotsData.find((s) => s.id === shotId);
+      if (!shot) return;
+
+      // Update Metric Display
+      document.getElementById('metric-carry').innerText = shot.carry;
+      document.getElementById('metric-total').innerText = shot.total;
+      document.getElementById('metric-curve').innerText = shot.curve;
+      document.getElementById('metric-club-speed').innerText = shot.clubSpeed;
+      document.getElementById('metric-ball-speed').innerText = shot.ballSpeed;
+      document.getElementById('metric-smash').innerText = shot.smash;
+      document.getElementById('metric-spin').innerText = shot.spin;
+      document.getElementById('metric-attack').innerText = shot.attack;
+      document.getElementById('metric-path').innerText = shot.path;
+      document.getElementById('metric-face-path').innerText = shot.faceToPath;
+
+      // Update Metadata String
+      document.getElementById('shot-metadata-string').innerText = shot.timestamp || 'Live shot';
+
+      renderShotList();
+      update3DTrajectory(shot);
+    }
+
+    /* ========================================================================
+       3. THREE.JS 3D DRIVING RANGE GRAPHICS
+       ======================================================================== */
+    let scene, camera, renderer, controls;
+    let trajectoryMesh, curtainMesh, shadowMesh, animatedBall, animatedHalo;
+    let animationFrameId, ballAnimProgress = 1;
+
+    function init3D() {
+      const container = document.getElementById('canvas-container');
+      const width = container.clientWidth;
+      const height = container.clientHeight;
+
+      // Scene
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x8fb6d6);
+      scene.fog = new THREE.FogExp2(0x8fb6d6, 0.002);
+
+      camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 2000000);
+      setCameraView('behind');
+
+      renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+      renderer.setSize(width, height);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.1;
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      container.appendChild(renderer.domElement);
+
+      controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+      controls.target.set(0, 5, -150);
+      controls.maxPolarAngle = Math.PI / 2 - 0.05;
+      controls.minDistance = 2;
+      controls.maxDistance = 100;
+
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+      scene.add(ambientLight);
+
+      const sunLight = new THREE.DirectionalLight(0xffffff, 1.2);
+      sunLight.position.set(100, 50, -50);
+      sunLight.castShadow = true;
+      sunLight.shadow.mapSize.set(2048, 2048);
+      sunLight.shadow.camera.far = 500;
+      sunLight.shadow.camera.left = -100;
+      sunLight.shadow.camera.right = 100;
+      sunLight.shadow.camera.top = 100;
+      sunLight.shadow.camera.bottom = -100;
+      scene.add(sunLight);
+
+      createDaytimeSky();
+      createProceduralTerrain();
+      createForest();
+      createFairwayMarkers();
+
+      // Create Ball Flight Objects only when a live shot exists
+      if (selectedShotId != null) {
+        const initialShot = shotsData.find((s) => s.id === selectedShotId);
+        if (initialShot) update3DTrajectory(initialShot);
+      }
+
+      // Window Resize Listener
+      window.addEventListener('resize', onWindowResize);
+
+      // Animation Loop
+      animate();
+    }
+
+    const terrainVertexShader = `
+      varying vec2 vUv;
+      varying vec3 vPosition;
+
+      vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+      vec2 mod289(vec2 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+      vec3 permute(vec3 x) { return mod289(((x*34.0)+1.0)*x); }
+      float snoise(vec2 v) {
+        const vec4 C = vec4(0.211324865405187, 0.366025403784439, -0.577350269189626, 0.024390243902439);
+        vec2 i  = floor(v + dot(v, C.yy) );
+        vec2 x0 = v -   i + dot(i, C.xx);
+        vec2 i1; i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+        vec4 x12 = x0.xyxy + C.xxzz;
+        x12.xy -= i1;
+        i = mod289(i);
+        vec3 p = permute( permute( i.y + vec3(0.0, i1.y, 1.0 )) + i.x + vec3(0.0, i1.x, 1.0 ));
+        vec3 m = max(0.5 - vec3(dot(x0,x0), dot(x12.xy,x12.xy), dot(x12.zw,x12.zw)), 0.0);
+        m = m*m ; m = m*m ;
+        vec3 x = 2.0 * fract(p * C.www) - 1.0;
+        vec3 h = abs(x) - 0.5;
+        vec3 ox = floor(x + 0.5);
+        vec3 a0 = x - ox;
+        m *= 1.79284291400159 - 0.85373472095314 * ( a0*a0 + h*h );
+        vec3 g;
+        g.x  = a0.x  * x0.x  + h.x  * x0.y;
+        g.yz = a0.yz * x12.xz + h.yz * x12.yw;
+        return 130.0 * dot(m, g);
+      }
+
+      void main() {
+        vUv = uv;
+        vec3 pos = position;
+        float roll = snoise(pos.xy * 0.004) * 8.0;
+        float microRoll = snoise(pos.xy * 0.015) * 2.0;
+        float distFromCenter = abs(pos.x);
+        float fairwayMask = smoothstep(15.0, 40.0, distFromCenter);
+        pos.z += (roll + microRoll) * fairwayMask;
+        vPosition = pos;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+      }
+    `;
+
+    const terrainFragmentShader = `
+      varying vec2 vUv;
+      varying vec3 vPosition;
+
+      vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+      vec2 mod289(vec2 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+      vec3 permute(vec3 x) { return mod289(((x*34.0)+1.0)*x); }
+      float snoise(vec2 v) {
+        const vec4 C = vec4(0.211324865405187, 0.366025403784439, -0.577350269189626, 0.024390243902439);
+        vec2 i  = floor(v + dot(v, C.yy) );
+        vec2 x0 = v -   i + dot(i, C.xx);
+        vec2 i1; i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+        vec4 x12 = x0.xyxy + C.xxzz;
+        x12.xy -= i1;
+        i = mod289(i);
+        vec3 p = permute( permute( i.y + vec3(0.0, i1.y, 1.0 )) + i.x + vec3(0.0, i1.x, 1.0 ));
+        vec3 m = max(0.5 - vec3(dot(x0,x0), dot(x12.xy,x12.xy), dot(x12.zw,x12.zw)), 0.0);
+        m = m*m ; m = m*m ;
+        vec3 x = 2.0 * fract(p * C.www) - 1.0;
+        vec3 h = abs(x) - 0.5;
+        vec3 ox = floor(x + 0.5);
+        vec3 a0 = x - ox;
+        m *= 1.79284291400159 - 0.85373472095314 * ( a0*a0 + h*h );
+        vec3 g;
+        g.x  = a0.x  * x0.x  + h.x  * x0.y;
+        g.yz = a0.yz * x12.xz + h.yz * x12.yw;
+        return 130.0 * dot(m, g);
+      }
+
+      float fbm(vec2 p) {
+        float value = 0.0;
+        float amplitude = 1.0;
+        float frequency = 0.03;
+        for (int i = 0; i < 4; i++) {
+          value += amplitude * snoise(p * frequency);
+          amplitude *= 0.5;
+          frequency *= 2.0;
+        }
+        return value;
+      }
+
+      void main() {
+        vec3 lightGrass = vec3(0.42, 0.58, 0.28);
+        vec3 darkGrass = vec3(0.35, 0.50, 0.22);
+        vec3 roughGrass = vec3(0.30, 0.42, 0.18);
+        vec3 sandColor = vec3(0.86, 0.82, 0.72);
+        vec3 sandShadow = vec3(0.70, 0.65, 0.55);
+
+        float stripe = step(0.5, fract(vPosition.y * 0.06));
+        vec3 terrainColor = mix(darkGrass, lightGrass, stripe);
+
+        float distFromCenter = abs(vPosition.x);
+        float roughMask = smoothstep(20.0, 35.0, distFromCenter);
+        terrainColor = mix(terrainColor, roughGrass, roughMask);
+
+        float bunkerNoise = fbm(vPosition.xy + vec2(100.0, 50.0));
+        float bunkerZone = smoothstep(22.0, 60.0, distFromCenter);
+        float isBunker = smoothstep(0.45, 0.5, bunkerNoise * bunkerZone);
+        float bunkerLip = smoothstep(0.4, 0.45, bunkerNoise * bunkerZone) - isBunker;
+
+        terrainColor = mix(terrainColor, sandColor, isBunker);
+        terrainColor = mix(terrainColor, sandShadow, bunkerLip * 0.6);
+
+        float gridCoord = vPosition.y / 50.0;
+        float grid = abs(fract(gridCoord - 0.5) - 0.5) / fwidth(gridCoord);
+        float gridLine = (1.0 - min(grid, 1.0)) * (1.0 - smoothstep(60.0, 75.0, distFromCenter));
+        gridLine *= step(0.0, -vPosition.y) * (1.0 - step(500.0, -vPosition.y));
+        terrainColor = mix(terrainColor, vec3(0.9), gridLine * 0.3);
+
+        float depth = smoothstep(100.0, 800.0, -vPosition.y);
+        terrainColor = mix(terrainColor, vec3(0.55, 0.71, 0.84), depth * 0.3);
+
+        gl_FragColor = vec4(terrainColor, 1.0);
+      }
+    `;
+
+    function createDaytimeSky() {
+      if (typeof THREE.Sky === 'function') {
+        const sky = new THREE.Sky();
+        sky.scale.setScalar(450000);
+        const uniforms = sky.material.uniforms;
+        uniforms['turbidity'].value = 4;
+        uniforms['rayleigh'].value = 0.8;
+        uniforms['mieCoefficient'].value = 0.005;
+        uniforms['mieDirectionalG'].value = 0.8;
+        uniforms['sunPosition'].value.set(100, 30, -100);
+        scene.add(sky);
+        return;
+      }
+
+      const skyMat = new THREE.ShaderMaterial({
+        side: THREE.BackSide,
+        depthWrite: false,
+        fog: false,
+        uniforms: {
+          topColor: { value: new THREE.Color(0x6ea8d8) },
+          horizonColor: { value: new THREE.Color(0xc5d9ec) },
+          sunColor: { value: new THREE.Color(0xfff4d6) }
+        },
+        vertexShader: `
+          varying vec3 vWorldPosition;
+          void main() {
+            vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+            vWorldPosition = worldPosition.xyz;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          }
+        `,
+        fragmentShader: `
+          uniform vec3 topColor;
+          uniform vec3 horizonColor;
+          uniform vec3 sunColor;
+          varying vec3 vWorldPosition;
+          void main() {
+            vec3 dir = normalize(vWorldPosition);
+            float h = dir.y;
+            vec3 col = mix(horizonColor, topColor, max(pow(max(h, 0.0), 0.55), 0.0));
+            vec3 sunDir = normalize(vec3(100.0, 30.0, -100.0));
+            float sun = pow(max(dot(dir, sunDir), 0.0), 48.0);
+            col += sunColor * sun * 0.65;
+            gl_FragColor = vec4(col, 1.0);
+          }
+        `
+      });
+      scene.add(new THREE.Mesh(new THREE.SphereGeometry(1400, 32, 24), skyMat));
+    }
+
+    function createProceduralTerrain() {
+      const segs = 192;
+      const geo = new THREE.PlaneGeometry(1200, 1500, segs, segs);
+      const mat = new THREE.ShaderMaterial({
+        vertexShader: terrainVertexShader,
+        fragmentShader: terrainFragmentShader,
+        extensions: { derivatives: true },
+        fog: false
+      });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.rotation.x = -Math.PI / 2;
+      mesh.receiveShadow = true;
+      scene.add(mesh);
+    }
+
+    function createForest() {
+      const treeCount = 800;
+      const dummy = new THREE.Object3D();
+      const color = new THREE.Color();
+
+      const trunks = new THREE.InstancedMesh(
+        new THREE.CylinderGeometry(0.4, 0.6, 6, 5),
+        new THREE.MeshLambertMaterial(),
+        treeCount
+      );
+      const pines = new THREE.InstancedMesh(
+        new THREE.ConeGeometry(3.5, 12, 5),
+        new THREE.MeshLambertMaterial(),
+        treeCount
+      );
+      const oaks = new THREE.InstancedMesh(
+        new THREE.IcosahedronGeometry(4.5, 1),
+        new THREE.MeshLambertMaterial(),
+        treeCount
+      );
+      trunks.castShadow = true;
+      pines.castShadow = true;
+      oaks.castShadow = true;
+
+      let pineIndex = 0;
+      let oakIndex = 0;
+
+      for (let i = 0; i < treeCount; i++) {
+        const side = Math.random() > 0.5 ? 1 : -1;
+        const x = (40 + Math.random() * 200) * side;
+        const z = 50 - Math.random() * 900;
+        const isPine = Math.random() > 0.4;
+        const scale = 0.5 + Math.random() * 1.5;
+        const height = isPine ? 12 * scale : 8 * scale;
+
+        dummy.position.set(x, height / 4, z);
+        dummy.scale.set(scale, scale, scale);
+        dummy.updateMatrix();
+        trunks.setMatrixAt(i, dummy.matrix);
+        trunks.setColorAt(i, color.setHex(0x4a3a2a));
+
+        if (isPine) {
+          dummy.position.set(x, height * 0.6, z);
+          dummy.scale.set(scale * 0.8, scale * 1.2, scale * 0.8);
+          dummy.updateMatrix();
+          pines.setMatrixAt(pineIndex, dummy.matrix);
+          pines.setColorAt(pineIndex, color.setHSL(0.3 + Math.random() * 0.05, 0.4 + Math.random() * 0.3, 0.15 + Math.random() * 0.1));
+          pineIndex++;
+        } else {
+          dummy.position.set(x, height * 0.8, z);
+          dummy.scale.set(scale, scale * 0.9, scale);
+          dummy.updateMatrix();
+          oaks.setMatrixAt(oakIndex, dummy.matrix);
+          oaks.setColorAt(oakIndex, color.setHSL(0.28 + Math.random() * 0.08, 0.5 + Math.random() * 0.3, 0.2 + Math.random() * 0.15));
+          oakIndex++;
+        }
+      }
+
+      dummy.position.set(0, -2000, 0);
+      dummy.scale.set(0, 0, 0);
+      dummy.updateMatrix();
+      for (let i = pineIndex; i < treeCount; i++) pines.setMatrixAt(i, dummy.matrix);
+      for (let i = oakIndex; i < treeCount; i++) oaks.setMatrixAt(i, dummy.matrix);
+
+      trunks.instanceMatrix.needsUpdate = true;
+      pines.instanceMatrix.needsUpdate = true;
+      oaks.instanceMatrix.needsUpdate = true;
+      if (trunks.instanceColor) trunks.instanceColor.needsUpdate = true;
+      if (pines.instanceColor) pines.instanceColor.needsUpdate = true;
+      if (oaks.instanceColor) oaks.instanceColor.needsUpdate = true;
+
+      scene.add(trunks);
+      scene.add(pines);
+      scene.add(oaks);
+    }
+
+    function createFairwayMarkers() {
+      const distances = [100, 150, 200, 250, 300];
+      distances.forEach((dist) => {
+        const ringGeo = new THREE.RingGeometry(11.5, 12.4, 48);
+        const ringMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide, opacity: 0.55, transparent: true });
+        const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+        ringMesh.rotation.x = -Math.PI / 2;
+        ringMesh.position.set(0, 0.12, -dist);
+        scene.add(ringMesh);
+
+        const pole = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.1, 0.1, 5, 8),
+          new THREE.MeshBasicMaterial({ color: 0xffffff })
+        );
+        pole.position.set(0, 2.5, -dist);
+        scene.add(pole);
+
+        const flag = new THREE.Mesh(
+          new THREE.ConeGeometry(1.2, 2, 3),
+          new THREE.MeshBasicMaterial({ color: 0xff2200 })
+        );
+        flag.rotation.z = -Math.PI / 2;
+        flag.position.set(0.8, 4.2, -dist);
+        scene.add(flag);
+
+        createTurfTextLabel(`${dist}`, 0, -dist + 2);
+      });
+    }
+
+    function createTurfTextLabel(text, x, z) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 128;
+      canvas.height = 64;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = 'rgba(0,0,0,0)';
+      ctx.fillRect(0, 0, 128, 64);
+      ctx.font = 'Bold 40px Roboto Mono, sans-serif';
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(text, 64, 32);
+
+      const texture = new THREE.CanvasTexture(canvas);
+      const mat = new THREE.MeshBasicMaterial({ map: texture, transparent: true, side: THREE.DoubleSide });
+      const geo = new THREE.PlaneGeometry(8, 4);
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.rotation.x = -Math.PI / 2;
+      mesh.position.set(x, 0.15, z);
+      scene.add(mesh);
+    }
+
+    /* ========================================================================
+       4. TRACKMAN CYAN BALL TRAJECTORY & RIBBON CURTAIN
+       ======================================================================== */
+    function clear3DTrajectory() {
+      if (trajectoryMesh) scene.remove(trajectoryMesh);
+      if (curtainMesh) scene.remove(curtainMesh);
+      if (shadowMesh) scene.remove(shadowMesh);
+      if (animatedBall) scene.remove(animatedBall);
+      if (animatedHalo) scene.remove(animatedHalo);
+      trajectoryMesh = curtainMesh = shadowMesh = animatedBall = animatedHalo = null;
+      ballAnimProgress = 1;
+      window.currentAnimPoints = null;
+    }
+
+    function clearMetrics() {
+      ['metric-carry','metric-total','metric-curve','metric-club-speed','metric-ball-speed','metric-smash','metric-spin','metric-attack','metric-path','metric-face-path'].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.innerText = '—';
+      });
+      const meta = document.getElementById('shot-metadata-string');
+      if (meta) meta.innerText = 'Waiting for shot…';
+    }
+
+    function update3DTrajectory(shot) {
+      if (!scene) return;
+      clear3DTrajectory();
+      if (!shot || !shot.carry || parseFloat(shot.carry) <= 0) return;
+
+      const carryYds = parseFloat(shot.carry);
+      const offlineYds = shot.offlineFt / 3.0; // Convert feet to yards
+      const apexYds = shot.apexYds;
+
+      // Construct Trajectory Bezier Curve Points
+      const pointsCount = 80;
+      const trajectoryPoints = [];
+      const groundPoints = [];
+
+      for (let i = 0; i <= pointsCount; i++) {
+        const t = i / pointsCount;
+        
+        // Z distance downrange
+        const z = -t * carryYds;
+        
+        // Parabolic vertical height Y (Apex in yards)
+        const y = Math.sin(t * Math.PI) * apexYds;
+        
+        // Lateral curve X (Aerodynamic curve drift)
+        // Shot curves gradually downrange
+        const x = Math.pow(t, 1.4) * offlineYds;
+
+        trajectoryPoints.push(new THREE.Vector3(x, Math.max(0, y), z));
+        groundPoints.push(new THREE.Vector3(x, 0.05, z));
+      }
+
+      // 1. Solid Cyan Tube Mesh for Primary Ball Flight Arc
+      const curve = new THREE.CatmullRomCurve3(trajectoryPoints);
+      const tubeGeo = new THREE.TubeGeometry(curve, 80, 0.45, 8, false);
+      const tubeMat = new THREE.MeshBasicMaterial({
+        color: 0x00f0ff,
+        wireframe: false,
+      });
+      trajectoryMesh = new THREE.Mesh(tubeGeo, tubeMat);
+      scene.add(trajectoryMesh);
+
+      // 2. TrackMan Vertical Translucent Ribbon Curtain (Signature Feature!)
+      // Connects flight curve down to the ground plane projection
+      const curtainGeo = new THREE.BufferGeometry();
+      const curtainVertices = [];
+      const curtainUvs = [];
+
+      for (let i = 0; i < trajectoryPoints.length - 1; i++) {
+        const p1 = trajectoryPoints[i];
+        const p2 = trajectoryPoints[i + 1];
+        const g1 = groundPoints[i];
+        const g2 = groundPoints[i + 1];
+
+        // Triangle 1
+        curtainVertices.push(p1.x, p1.y, p1.z);
+        curtainVertices.push(g1.x, g1.y, g1.z);
+        curtainVertices.push(p2.x, p2.y, p2.z);
+
+        // Triangle 2
+        curtainVertices.push(g1.x, g1.y, g1.z);
+        curtainVertices.push(g2.x, g2.y, g2.z);
+        curtainVertices.push(p2.x, p2.y, p2.z);
+      }
+
+      curtainGeo.setAttribute('position', new THREE.Float32BufferAttribute(curtainVertices, 3));
+      const curtainMat = new THREE.MeshBasicMaterial({
+        color: 0x00f0ff,
+        opacity: 0.28,
+        transparent: true,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      });
+      curtainMesh = new THREE.Mesh(curtainGeo, curtainMat);
+      scene.add(curtainMesh);
+
+      // 3. Ground Shadow Curve Line
+      const groundCurve = new THREE.CatmullRomCurve3(groundPoints);
+      const shadowGeo = new THREE.TubeGeometry(groundCurve, 80, 0.15, 6, false);
+      const shadowMat = new THREE.MeshBasicMaterial({ color: 0x0088cc, opacity: 0.6, transparent: true });
+      shadowMesh = new THREE.Mesh(shadowGeo, shadowMat);
+      scene.add(shadowMesh);
+
+      // 4. Glowing Golf Ball Marker at Landing Point
+      const ballGeo = new THREE.SphereGeometry(0.8, 16, 16);
+      const ballMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+      animatedBall = new THREE.Mesh(ballGeo, ballMat);
+      
+      const lastPoint = trajectoryPoints[trajectoryPoints.length - 1];
+      animatedBall.position.copy(lastPoint);
+      scene.add(animatedBall);
+
+      // Halo Glow Ring around ball
+      const haloGeo = new THREE.RingGeometry(1.0, 1.8, 32);
+      const haloMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff, side: THREE.DoubleSide, transparent: true, opacity: 0.8 });
+      animatedHalo = new THREE.Mesh(haloGeo, haloMat);
+      animatedHalo.rotation.x = -Math.PI / 2;
+      animatedHalo.position.set(lastPoint.x, 0.1, lastPoint.z);
+      scene.add(animatedHalo);
+
+      // Trigger shot animation replay
+      startBallFlightAnim(trajectoryPoints);
+    }
+
+    function startBallFlightAnim(points) {
+      ballAnimProgress = 0;
+      window.currentAnimPoints = points;
+    }
+
+    function setCameraView(preset) {
+      if (!camera) return;
+      if (preset === 'behind') {
+        camera.position.set(0, 4, 15);
+        camera.lookAt(0, 5, -150);
+      } else if (preset === 'target') {
+        camera.position.set(0, 12, -260);
+        camera.lookAt(0, 5, -150);
+      } else if (preset === 'top') {
+        camera.position.set(0, 220, -120);
+        camera.lookAt(0, 0, -125);
+      } else if (preset === 'side') {
+        camera.position.set(-140, 20, -110);
+        camera.lookAt(0, 15, -110);
+      }
+      if (controls) controls.update();
+    }
+
+    function onWindowResize() {
+      const container = document.getElementById('canvas-container');
+      camera.aspect = container.clientWidth / container.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(container.clientWidth, container.clientHeight);
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      // Orbit controls update
+      if (controls) controls.update();
+
+      // Ball Flight Animation logic
+      if (ballAnimProgress < 1 && window.currentAnimPoints && animatedBall) {
+        ballAnimProgress += 0.015;
+        const index = Math.min(
+          Math.floor(ballAnimProgress * (window.currentAnimPoints.length - 1)),
+          window.currentAnimPoints.length - 1
+        );
+        const pt = window.currentAnimPoints[index];
+        animatedBall.position.copy(pt);
+      }
+
+      renderer.render(scene, camera);
+    }
+
+    /* ========================================================================
+       5. INITIALIZATION & EVENT LISTENERS
+       ======================================================================== */
+    window.PITRAX = {
+      setSession(payload) {
+        const shots = Array.isArray(payload.shots) ? payload.shots : [];
+        shotsData.length = 0;
+        shots.forEach((s) => shotsData.push(s));
+        const countEl = document.querySelector('aside span.font-mono-num');
+        if (countEl) countEl.innerText = String(shotsData.length);
+        if (!shotsData.length) {
+          selectedShotId = null;
+          clearMetrics();
+          if (scene) clear3DTrajectory();
+          renderShotList();
+          return;
+        }
+        const nextId = payload.selectedId != null ? payload.selectedId : shotsData[0].id;
+        selectShot(nextId);
+      }
+    };
+
+    window.onload = () => {
+      renderShotList();
+      init3D();
+
+      const back = document.getElementById('back-btn');
+      if (back) {
+        back.onclick = () => {
+          if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.pitrax) {
+            window.webkit.messageHandlers.pitrax.postMessage('back');
+          }
+        };
+      }
+
+      document.getElementById('camera-angle-select').addEventListener('change', (e) => {
+        setCameraView(e.target.value);
+      });
+
+      document.getElementById('replay-shot-btn').onclick = () => {
+        const shot = shotsData.find((s) => s.id === selectedShotId);
+        if (shot) update3DTrajectory(shot);
+      };
+
+      document.getElementById('compare-btn').onclick = () => {
+        const shot = shotsData.find((s) => s.id === selectedShotId);
+        if (!shot) return;
+        alert(`Comparison Mode Activated for Shot #${shot.id} (${shot.carry} yds)!`);
+      };
+    };
+  </script>
+</body>
+</html>

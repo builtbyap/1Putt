@@ -1,0 +1,27 @@
+{
+  "name": "rangeweb",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "React Three Fiber driving range, built into a single HTML file for the iOS RANGE WebView",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "build:app": "vite build && node scripts/copy-to-app.mjs"
+  },
+  "dependencies": {
+    "@react-three/drei": "^10.7.9",
+    "@react-three/fiber": "^9.8.1",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "three": "^0.186.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.7.0",
+    "autoprefixer": "^10.6.1",
+    "postcss": "^8.5.28",
+    "tailwindcss": "^3.4.19",
+    "vite": "^5.4.21",
+    "vite-plugin-singlefile": "^2.0.3"
+  }
+}

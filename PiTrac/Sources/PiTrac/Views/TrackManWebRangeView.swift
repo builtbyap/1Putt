@@ -9,9 +9,11 @@ struct RangeWebShot: Encodable {
     let clubSpeed: String
     let ballSpeed: String
     let smash: String
+    let launch: String
     let spin: String
     let attack: String
     let path: String
+    let faceAngle: String
     let faceToPath: String
     let apexYds: Double
     let offlineFt: Double
@@ -38,9 +40,11 @@ enum RangeWebSessionBuilder {
                 clubSpeed: String(format: "%.1f", shot.clubSpeedMph),
                 ballSpeed: String(format: "%.1f", shot.ballSpeedMph),
                 smash: String(format: "%.2f", shot.smashFactor),
+                launch: String(format: "%.1f", shot.launchAngleDeg),
                 spin: "\(shot.spinRateRpm)",
                 attack: shot.attackAngleDeg.map { String(format: "%.1f", $0) } ?? "—",
                 path: shot.clubPathDeg.map { String(format: "%.1f", $0) } ?? "—",
+                faceAngle: faceAngleLabel(shot),
                 faceToPath: shot.faceToPathDeg.map { String(format: "%.1f", $0) } ?? "—",
                 apexYds: apex,
                 offlineFt: offline,
@@ -55,9 +59,14 @@ enum RangeWebSessionBuilder {
         }
         return json
     }
+
+    // Face-to-path is face angle minus club path.
+    private static func faceAngleLabel(_ shot: ShotData) -> String {
+        guard let path = shot.clubPathDeg, let faceToPath = shot.faceToPathDeg else { return "—" }
+        return String(format: "%.1f", path + faceToPath)
+    }
 }
 
-#if os(iOS)
 struct TrackManWebRangeView: UIViewRepresentable {
     let shots: [ShotData]
     var onBack: () -> Void
@@ -67,7 +76,22 @@ struct TrackManWebRangeView: UIViewRepresentable {
     }
 
     func makeUIView(context: Context) -> WKWebView {
-        makeRangeWebView(coordinator: context.coordinator)
+        let config = WKWebViewConfiguration()
+        config.userContentController.add(context.coordinator, name: "pitrax")
+        config.allowsInlineMediaPlayback = true
+
+        let webView = WKWebView(frame: .zero, configuration: config)
+        webView.navigationDelegate = context.coordinator
+        webView.isOpaque = false
+        webView.backgroundColor = .black
+        webView.scrollView.isScrollEnabled = false
+        webView.scrollView.bounces = false
+
+        if let url = Bundle.main.url(forResource: "trackman_range", withExtension: "html")
+            ?? Bundle.main.url(forResource: "trackman_range", withExtension: "html", subdirectory: "Web") {
+            webView.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
+        }
+        return webView
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
@@ -75,25 +99,6 @@ struct TrackManWebRangeView: UIViewRepresentable {
         context.coordinator.pushSession(RangeWebSessionBuilder.jsonString(from: shots), to: webView)
     }
 }
-#else
-struct TrackManWebRangeView: NSViewRepresentable {
-    let shots: [ShotData]
-    var onBack: () -> Void
-
-    func makeCoordinator() -> TrackManWebCoordinator {
-        TrackManWebCoordinator(onBack: onBack)
-    }
-
-    func makeNSView(context: Context) -> WKWebView {
-        makeRangeWebView(coordinator: context.coordinator)
-    }
-
-    func updateNSView(_ webView: WKWebView, context: Context) {
-        context.coordinator.onBack = onBack
-        context.coordinator.pushSession(RangeWebSessionBuilder.jsonString(from: shots), to: webView)
-    }
-}
-#endif
 
 final class TrackManWebCoordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
     var onBack: () -> Void
@@ -131,26 +136,4 @@ final class TrackManWebCoordinator: NSObject, WKNavigationDelegate, WKScriptMess
     private func inject(_ json: String, into webView: WKWebView) {
         webView.evaluateJavaScript("window.PITRAX && window.PITRAX.setSession(\(json));") { _, _ in }
     }
-}
-
-private func makeRangeWebView(coordinator: TrackManWebCoordinator) -> WKWebView {
-    let config = WKWebViewConfiguration()
-    config.userContentController.add(coordinator, name: "pitrax")
-    #if os(iOS)
-    config.allowsInlineMediaPlayback = true
-    #endif
-
-    let webView = WKWebView(frame: .zero, configuration: config)
-    webView.navigationDelegate = coordinator
-    #if os(iOS)
-    webView.isOpaque = false
-    webView.backgroundColor = .black
-    webView.scrollView.isScrollEnabled = false
-    webView.scrollView.bounces = false
-    #endif
-
-    if let url = Bundle.module.url(forResource: "trackman_range", withExtension: "html") {
-        webView.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
-    }
-    return webView
 }

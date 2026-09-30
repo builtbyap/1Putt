@@ -2,3 +2,5 @@
 xcuserdata/
 .build/
 *.xcuserstate
+node_modules/
+RangeWeb/dist/
