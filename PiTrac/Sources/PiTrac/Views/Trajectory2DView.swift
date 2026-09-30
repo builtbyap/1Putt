@@ -10,7 +10,7 @@ struct Trajectory2DView: View {
                 .foregroundColor(.gray)
 
             Canvas { context, size in
-                guard let shot = shot, shot.carryYards > 0 else { return }
+                guard let shot = shot, shot.hasRecordedFlight else { return }
 
                 let width = size.width
                 let height = size.height

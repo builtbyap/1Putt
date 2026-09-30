@@ -48,7 +48,7 @@ struct GolfTrajectoryView: View {
         teeNode.position = SCNVector3(0, 0.2, 0)
         scene.rootNode.addChildNode(teeNode)
 
-        if let shot = shot {
+        if let shot = shot, shot.hasRecordedFlight {
             let trajectoryNode = createBallFlightNode(
                 carryYards: CGFloat(shot.carryYards),
                 launchAngle: CGFloat(shot.launchAngleDeg)
