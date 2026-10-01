@@ -17,15 +17,19 @@ const FLIGHT_SECONDS = 2.5;
 function TrackmanTracer({ carryYds = 250, apexYds = 35, offlineYds = 0 }) {
   const ballRef = useRef();
   const progress = useRef(0);
+  // A yard or less of curve reads as straight, so it gets no ground shadow.
+  const showGroundShadow = Math.abs(offlineYds) > 1;
 
-  const { points, tubeGeo, curtainGeo } = useMemo(() => {
+  const { points, tubeGeo, curtainGeo, shadowGeo } = useMemo(() => {
     const points = [];
+    const groundPoints = [];
     for (let i = 0; i <= TRACER_SEGMENTS; i++) {
       const t = i / TRACER_SEGMENTS;
       const z = -t * carryYds;
       const y = Math.sin(t * Math.PI) * apexYds;
       const x = Math.pow(t, 1.4) * offlineYds;
       points.push(new THREE.Vector3(x, Math.max(0, y), z));
+      groundPoints.push(new THREE.Vector3(x, groundHeight(x, z) + 0.2, z));
     }
 
     const curve = new THREE.CatmullRomCurve3(points);
@@ -35,21 +39,58 @@ function TrackmanTracer({ carryYds = 250, apexYds = 35, offlineYds = 0 }) {
     for (let i = 0; i < TRACER_SEGMENTS; i++) {
       const p1 = points[i];
       const p2 = points[i + 1];
-      curtain.push(p1.x, p1.y, p1.z, p1.x, 0.05, p1.z, p2.x, p2.y, p2.z);
-      curtain.push(p1.x, 0.05, p1.z, p2.x, 0.05, p2.z, p2.x, p2.y, p2.z);
+      const g1 = groundPoints[i];
+      const g2 = groundPoints[i + 1];
+      curtain.push(p1.x, p1.y, p1.z, g1.x, g1.y, g1.z, p2.x, p2.y, p2.z);
+      curtain.push(g1.x, g1.y, g1.z, g2.x, g2.y, g2.z, p2.x, p2.y, p2.z);
     }
     const curtainGeo = new THREE.BufferGeometry();
     curtainGeo.setAttribute('position', new THREE.Float32BufferAttribute(curtain, 3));
 
+    let shadowGeo = null;
+    if (Math.abs(offlineYds) > 1) {
+      // Flat ribbon on the turf. Width grows with distance so perspective
+      // doesn't turn the near end into a wedge, while the far curve stays visible.
+      const ribbon = [];
+      const side = (i) => {
+        const prev = groundPoints[Math.max(0, i - 1)];
+        const next = groundPoints[Math.min(TRACER_SEGMENTS, i + 1)];
+        const dx = next.x - prev.x;
+        const dz = next.z - prev.z;
+        const len = Math.hypot(dx, dz) || 1;
+        const dist = Math.max(12, 6 - groundPoints[i].z);
+        const halfWidth = dist * 0.008;
+        return { x: (-dz / len) * halfWidth, z: (dx / len) * halfWidth };
+      };
+      for (let i = 0; i < TRACER_SEGMENTS; i++) {
+        const a = groundPoints[i];
+        const b = groundPoints[i + 1];
+        const sa = side(i);
+        const sb = side(i + 1);
+        ribbon.push(
+          a.x + sa.x, a.y, a.z + sa.z,
+          a.x - sa.x, a.y, a.z - sa.z,
+          b.x + sb.x, b.y, b.z + sb.z,
+          a.x - sa.x, a.y, a.z - sa.z,
+          b.x - sb.x, b.y, b.z - sb.z,
+          b.x + sb.x, b.y, b.z + sb.z
+        );
+      }
+      shadowGeo = new THREE.BufferGeometry();
+      shadowGeo.setAttribute('position', new THREE.Float32BufferAttribute(ribbon, 3));
+      shadowGeo.setDrawRange(0, 0);
+    }
+
     tubeGeo.setDrawRange(0, 0);
     curtainGeo.setDrawRange(0, 0);
-    return { points, tubeGeo, curtainGeo };
+    return { points, tubeGeo, curtainGeo, shadowGeo };
   }, [carryYds, apexYds, offlineYds]);
 
   useEffect(() => () => {
     tubeGeo.dispose();
     curtainGeo.dispose();
-  }, [tubeGeo, curtainGeo]);
+    shadowGeo?.dispose();
+  }, [tubeGeo, curtainGeo, shadowGeo]);
 
   useFrame((_, delta) => {
     if (progress.current >= 1) return;
@@ -57,6 +98,7 @@ function TrackmanTracer({ carryYds = 250, apexYds = 35, offlineYds = 0 }) {
     const drawn = Math.floor(progress.current * TRACER_SEGMENTS);
     tubeGeo.setDrawRange(0, drawn * TRACER_RADIAL * 6);
     curtainGeo.setDrawRange(0, drawn * 6);
+    shadowGeo?.setDrawRange(0, drawn * 6);
     if (ballRef.current) ballRef.current.position.copy(points[drawn]);
   });
 
@@ -70,6 +112,11 @@ function TrackmanTracer({ carryYds = 250, apexYds = 35, offlineYds = 0 }) {
       <mesh geometry={curtainGeo}>
         <meshBasicMaterial color="#00f0ff" transparent opacity={0.16} side={THREE.DoubleSide} depthWrite={false} toneMapped={false} />
       </mesh>
+      {showGroundShadow && shadowGeo && (
+        <mesh geometry={shadowGeo}>
+          <meshBasicMaterial color="#06140c" transparent opacity={0.55} side={THREE.DoubleSide} depthWrite={false} toneMapped={false} />
+        </mesh>
+      )}
       <mesh ref={ballRef} position={points[0]}>
         <sphereGeometry args={[0.6, 16, 16]} />
         <meshBasicMaterial color="#ffffff" toneMapped={false} />
@@ -275,7 +322,12 @@ export default function DrivingRangeCanvas({ shots = [], shot = null, onSelectSh
         }}
       >
         <PerspectiveCamera makeDefault position={[0, 2.2, 6]} fov={50} far={3000} />
-        <OrbitControls target={[0, 1.5, -30]} maxPolarAngle={Math.PI / 2 - 0.01} maxDistance={400} />
+        <OrbitControls
+          target={[0, 1.5, -30]}
+          enableRotate={false}
+          enablePan={false}
+          enableZoom={false}
+        />
 
         {/* Photorealistic Atmospheric Sky & Lighting */}
         <Sky sunPosition={[100, 20, 100]} turbidity={0.1} rayleigh={0.5} mieCoefficient={0.005} />
