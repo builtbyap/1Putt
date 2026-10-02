@@ -40,39 +40,51 @@ struct GolfTrajectoryView: View {
         scene.rootNode.addChildNode(teeNode)
 
         if let shot = shot, shot.hasRecordedFlight {
-            let trajectoryNode = createBallFlightNode(
-                carryYards: CGFloat(shot.carryYards),
-                launchAngle: CGFloat(shot.launchAngleDeg)
-            )
+            let trajectoryNode = createBallFlightNode(for: shot)
             scene.rootNode.addChildNode(trajectoryNode)
         }
 
         return scene
     }
 
-    private func createBallFlightNode(carryYards: CGFloat, launchAngle: CGFloat) -> SCNNode {
+    private func createBallFlightNode(for shot: ShotData) -> SCNNode {
         let parentNode = SCNNode()
 
-        let targetDistance = min(max(carryYards, 50.0), 320.0)
-        let angleRad = Float(launchAngle) * .pi / 180.0
+        let targetDistance = min(max(CGFloat(shot.carryYards), 50.0), 320.0)
+        let launchAngleRad = Float(shot.launchAngleDeg) * .pi / 180.0
+        let azimuthRad = Float(shot.azimuthDeg) * .pi / 180.0
+        let spinAxisRad = Float(shot.spinAxisDeg) * .pi / 180.0
 
         let ballNode = SCNNode(geometry: SCNSphere(radius: 0.35))
         ballNode.geometry?.firstMaterial?.diffuse.contents = UIColor.white
         parentNode.addChildNode(ballNode)
 
-        let animationDuration: TimeInterval = 2.2
+        let animationDuration: TimeInterval = 2.5
         var keyframePositions: [NSValue] = []
         var keyframeTimes: [NSNumber] = []
 
-        let steps = 40
+        let steps = 50
         for i in 0...steps {
-            let t = CGFloat(i) / CGFloat(steps)
-            let z = Float(targetDistance) * Float(t)
+            let t = Float(i) / Float(steps)
 
-            let peakHeight = Float(targetDistance) * 0.32 * sin(angleRad)
-            let y = max(0.2, peakHeight * sin(Float(t) * .pi))
+            // Z-Axis (Forward Distance)
+            let z = Float(targetDistance) * t
 
-            keyframePositions.append(NSValue(scnVector3: SCNVector3(0, y, z)))
+            // Y-Axis (Vertical Parabola)
+            let peakHeight = Float(targetDistance) * 0.32 * sin(launchAngleRad)
+            let y = max(0.2, peakHeight * sin(t * .pi))
+
+            // X-Axis (Horizontal Position + Curve)
+            // 1. Initial push/pull based on Azimuth
+            var x = z * tan(azimuthRad)
+
+            // 2. Magnus Effect (Aerodynamic curve)
+            // A negative spin axis (tilted left) produces a draw.
+            // The curve compounds exponentially as the ball travels (t^2).
+            let curveIntensity = Float(targetDistance) * 0.15 * sin(spinAxisRad)
+            x += curveIntensity * pow(t, 2)
+
+            keyframePositions.append(NSValue(scnVector3: SCNVector3(x, y, z)))
             keyframeTimes.append(NSNumber(value: Double(t) * animationDuration))
         }
 

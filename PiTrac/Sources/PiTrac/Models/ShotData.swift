@@ -6,7 +6,9 @@ struct ShotData: Codable, Identifiable {
     let ballSpeedMph: Double
     let clubSpeedMph: Double
     let launchAngleDeg: Double
+    let azimuthDeg: Double
     let spinRateRpm: Int
+    let spinAxisDeg: Double
     let carryYards: Double
     let totalYards: Double?
     let curveYards: Double?
@@ -18,7 +20,9 @@ struct ShotData: Codable, Identifiable {
         case ballSpeedMph
         case clubSpeedMph
         case launchAngleDeg
+        case azimuthDeg
         case spinRateRpm
+        case spinAxisDeg
         case carryYards
         case totalYards
         case curveYards
@@ -32,7 +36,9 @@ struct ShotData: Codable, Identifiable {
         ballSpeedMph = try container.decodeIfPresent(Double.self, forKey: .ballSpeedMph) ?? 0
         clubSpeedMph = try container.decodeIfPresent(Double.self, forKey: .clubSpeedMph) ?? 0
         launchAngleDeg = try container.decodeIfPresent(Double.self, forKey: .launchAngleDeg) ?? 0
+        azimuthDeg = try container.decodeIfPresent(Double.self, forKey: .azimuthDeg) ?? 0
         spinRateRpm = try container.decodeIfPresent(Int.self, forKey: .spinRateRpm) ?? 0
+        spinAxisDeg = try container.decodeIfPresent(Double.self, forKey: .spinAxisDeg) ?? 0
         carryYards = try container.decodeIfPresent(Double.self, forKey: .carryYards) ?? 0
         totalYards = try container.decodeIfPresent(Double.self, forKey: .totalYards)
         curveYards = try container.decodeIfPresent(Double.self, forKey: .curveYards)
